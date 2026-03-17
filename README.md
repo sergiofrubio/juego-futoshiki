@@ -66,11 +66,3 @@ ghc -o main.exe main.hs
 .\main.exe
 ```
 
-## Notas sobre los archivos del proyecto
-- `main.hs`: ejemplo mínimo con `main :: IO ()` (imprime "Hola Mundo").
-- `ejercicios.hs`: contiene funciones (por ejemplo `signo`) sin `main`; se usan cargándolas en `ghci`.
-
-## Ejemplo rápido
-1. Levantar contenedor y abrir shell.
-2. Dentro del shell: `ghci ejercicios.hs` → luego ejecutar `signo 5`.
-
