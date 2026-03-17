@@ -1,0 +1,24 @@
+services:
+  haskell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: juego-futoshiki
+    volumes:
+      - .:/app
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # prolog:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: prolog-workspace
+  #   volumes:
+  #     - .:/app
+  #   working_dir: /app
+  #   stdin_open: true
+  #   tty: true
+  #   command: /bin/bash
