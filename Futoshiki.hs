@@ -29,23 +29,26 @@ bt    esSol          suc          n
 ----- -------IMPLEMENTACIÓN FUNCION SUC ----------------
 suc :: Futoshiki -> [Futoshiki]
 suc f = case findEmpty (cells f) of
-  Nothing     -> []
-  Just (r, c) -> filter esValidoParcial
-                   [ f { cells = replaceMatrix (cells f) (r, c) v } | v <- [1 .. size f] ]
+  []     -> []
+  ((r, c):_) -> filter esValidoParcial
+                   [ f { cells = replaceMatrix (cells f) r c v } | v <- [1 .. size f] ]
 
 -- Encuentra la primera casilla vacía (0)
-findEmpty :: Matrix Int -> Maybe (Int, Int)
-findEmpty mat = case [ (r, c) | (r, row) <- zip [0..] mat, (c, val) <- zip [0..] row, val == 0 ] of
-  []        -> Nothing
-  (coord:_) -> Just coord
+findEmpty :: Matrix Int -> [(Int, Int)]
+findEmpty mat = [ (r, c) | (r, row) <- zip [0..] mat, (c, val) <- zip [0..] row, val == 0 ]
 
 -- Reemplaza el valor en una posición de la matriz
-replaceMatrix :: Matrix Int -> (Int, Int) -> Int -> Matrix Int
-replaceMatrix mat (r, c) val =
-  let (beforeR, row:afterR) = splitAt r mat
-      (beforeC, _:afterC)   = splitAt c row
-      newRow = beforeC ++ [val] ++ afterC
-  in beforeR ++ [newRow] ++ afterR
+replaceMatrix :: Matrix Int -> Int -> Int -> Int -> Matrix Int
+replaceMatrix mat r c val =
+  let beforeR = take r mat
+      rowAfterR = drop r mat
+  in case rowAfterR of
+       [] -> mat
+       (row:afterR) ->
+          let beforeC = take c row
+              afterC = drop (c + 1) row
+              newRow = beforeC ++ [val] ++ afterC
+          in beforeR ++ [newRow] ++ afterR
 
 -- Comprueba si un estado parcial es válido (ignora los 0s)
 esValidoParcial :: Futoshiki -> Bool
@@ -59,7 +62,7 @@ noDups :: [Int] -> Bool
 noDups [] = True
 noDups (x:xs)
   | x == 0    = noDups xs
-  | otherwise = not (x `elem` xs) && noDups xs
+  | otherwise = (length (filter (\y -> x == y) xs) == 0) && noDups xs
 
 -- Funciones para comprobar relaciones en estados parciales (ignora si hay un 0)
 cumpleRelParcial :: (Int, Int) -> Relation -> Bool
@@ -117,7 +120,6 @@ comprobarRelacionesHorizontales f = all (uncurry checkRelFila) (zip (cells f) (h
 -- Comprueba todas las relaciones verticales, reutilizando la lógica mediante transposición.
 comprobarRelacionesVerticales :: Futoshiki -> Bool
 comprobarRelacionesVerticales f = all (uncurry checkRelFila) (zip (transpose (cells f)) (transpose (vRel f)))
-
 
 -- Main function: solves a Futoshiki --
 solve :: Futoshiki -> [Matrix Int]

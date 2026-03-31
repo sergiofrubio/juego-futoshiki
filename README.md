@@ -27,41 +27,41 @@ docker compose exec haskell bash
 - Ejecutar un archivo sin compilar:
 
 ```bash
-runghc main.hs
+runghc Main.hs
 ```
 
 - Abrir `ghci` (interactivo):
 
 ```bash
-ghci main.hs
+ghci Main.hs
 # dentro de ghci: puedes llamar a `main` o a otras funciones (ej. `signo 3`)
 ```
 
 - Compilar a binario y ejecutar:
 
 ```bash
-ghc -o main main.hs
+ghc -o main Main.hs
 ./main
 ```
 
 4. Ejecutar un archivo sin entrar al shell (comando directo):
 
 ```bash
-docker compose run --rm haskell runghc main.hs
+docker compose run --rm haskell runghc Main.hs
 ```
 
 o, si el contenedor ya está en ejecución:
 
 ```bash
-docker compose exec haskell runghc main.hs
+docker compose exec haskell runghc Main.hs
 ```
 
 ## Uso local (Windows)
 Si tienes GHC instalado localmente:
 
 ```powershell
-runghc main.hs
-ghci main.hs
+runghc Main.hs
+ghci Main.hs
 ghc -o main.exe main.hs
 .\main.exe
 ```
