@@ -28,14 +28,14 @@ bt    esSol          suc          n
 --------------------------------------------------------
 ----- -------IMPLEMENTACIÓN FUNCION SUC ----------------
 suc :: Futoshiki -> [Futoshiki]
-suc f = case findEmpty (cells f) of
+suc f = case encontrarCero (cells f) of
   []     -> []
   ((r, c):_) -> filter esValidoParcial
                    [ f { cells = replaceMatrix (cells f) r c v } | v <- [1 .. size f] ]
 
 -- Encuentra la primera casilla vacía (0)
-findEmpty :: Matrix Int -> [(Int, Int)]
-findEmpty mat = [ (r, c) | (r, row) <- zip [0..] mat, (c, val) <- zip [0..] row, val == 0 ]
+encontrarCero :: Matrix Int -> [(Int, Int)]
+encontrarCero mat = [ (r, c) | (r, row) <- zip [0..] mat, (c, val) <- zip [0..] row, val == 0 ]
 
 -- Reemplaza el valor en una posición de la matriz
 replaceMatrix :: Matrix Int -> Int -> Int -> Int -> Matrix Int
@@ -53,16 +53,27 @@ replaceMatrix mat r c val =
 -- Comprueba si un estado parcial es válido (ignora los 0s)
 esValidoParcial :: Futoshiki -> Bool
 esValidoParcial f =
-  all noDups (cells f) &&
-  all noDups (transpose (cells f)) &&
-  all (uncurry checkRelFilaParcial) (zip (cells f) (hRel f)) &&
-  all (uncurry checkRelFilaParcial) (zip (transpose (cells f)) (transpose (vRel f)))
+  let filas = cells f
+      columnas = transpose filas
+      relVert = transpose (vRel f)
+  in all noDups filas &&
+     all noDups columnas &&
+     all (uncurry checkRelFilaParcial) (zip filas (hRel f)) &&
+     all (uncurry checkRelFilaParcial) (zip columnas relVert)
+
+-- Función auxiliar que se detiene al primer hallazgo (cortocircuito)
+pertenece :: Int -> [Int] -> Bool
+pertenece _ [] = False
+pertenece e (y:ys)
+  | e == y    = True
+  | otherwise = pertenece e ys
 
 noDups :: [Int] -> Bool
 noDups [] = True
 noDups (x:xs)
   | x == 0    = noDups xs
-  | otherwise = (length (filter (\y -> x == y) xs) == 0) && noDups xs
+  | pertenece x xs = False
+  | otherwise = noDups xs
 
 -- Funciones para comprobar relaciones en estados parciales (ignora si hay un 0)
 cumpleRelParcial :: (Int, Int) -> Relation -> Bool
@@ -83,23 +94,24 @@ checkRelFilaParcial nums rels =
 
 esSol :: Futoshiki -> Bool
 esSol f =
-  filasValidas f &&
-  columnasValidas f &&
-  comprobarRelacionesHorizontales f &&
-  comprobarRelacionesVerticales f
+  let filas = cells f
+      columnas = transpose filas
+      relVert  = transpose (vRel f)
+  in noHayCeros (concat filas) &&
+     all (uncurry checkRelFila) (zip filas (hRel f)) &&
+     all (uncurry checkRelFila) (zip columnas relVert)
+
+-- Comprueba si hay algún 0 en una lista plana
+noHayCeros :: [Int] -> Bool
+noHayCeros [] = True
+noHayCeros (x:xs)
+  | x == 0    = False -- Cortocircuito: si vemos un cero, fallamos al instante
+  | otherwise = noHayCeros xs
 
 -- Comprueba que una lista de enteros contiene exactamente los números del 1 a n, sin repetir.
 -- Esto también asegura que no hay ceros.
 listaValida :: Int -> [Int] -> Bool
-listaValida n xs = sort xs == [1..n]
-
--- Comprueba que todas las filas de la matriz son válidas.
-filasValidas :: Futoshiki -> Bool
-filasValidas f = all (listaValida (size f)) (cells f)
-
--- Comprueba que todas las columnas de la matriz son válidas, usando transposición.
-columnasValidas :: Futoshiki -> Bool
-columnasValidas f = all (listaValida (size f)) (transpose (cells f))
+listaValida n xs = todosPertenecen [1..n] xs
 
 -- Comprueba si una relación se cumple entre un par de números.
 cumpleRel :: (Int, Int) -> Relation -> Bool
@@ -109,17 +121,12 @@ cumpleRel (v1, v2) RGT = v1 > v2
 
 -- Comprueba las relaciones para una "fila" (puede ser una fila o una columna de celdas).
 checkRelFila :: [Int] -> [Relation] -> Bool
-checkRelFila nums rels =
-  let pares = zip nums (tail nums)
-  in all (uncurry cumpleRel) (zip pares rels)
+checkRelFila (x:y:xs) (r:rs) = cumpleRel (x, y) r && checkRelFila (y:xs) rs
+checkRelFila _ _ = True
 
--- Comprueba todas las relaciones horizontales.
-comprobarRelacionesHorizontales :: Futoshiki -> Bool
-comprobarRelacionesHorizontales f = all (uncurry checkRelFila) (zip (cells f) (hRel f))
-
--- Comprueba todas las relaciones verticales, reutilizando la lógica mediante transposición.
-comprobarRelacionesVerticales :: Futoshiki -> Bool
-comprobarRelacionesVerticales f = all (uncurry checkRelFila) (zip (transpose (cells f)) (transpose (vRel f)))
+todosPertenecen :: [Int] -> [Int] -> Bool
+todosPertenecen [] _ = True
+todosPertenecen (x:xs) listaDestino = pertenece x listaDestino && todosPertenecen xs listaDestino
 
 -- Main function: solves a Futoshiki --
 solve :: Futoshiki -> [Matrix Int]
