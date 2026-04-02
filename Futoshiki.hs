@@ -22,112 +22,131 @@ data Futoshiki = Futoshiki {
 bt :: (a -> Bool) -> (a -> [a]) -> a -> [a]
 bt    esSol          suc          n
   | esSol n                           = [n]
-  | otherwise                         = concat (map (bt esSol suc) (suc n))
+  | otherwise                         = concatMap (bt esSol suc) (suc n)
 
-
---------------------------------------------------------
------ -------IMPLEMENTACIÓN FUNCION SUC ----------------
-suc :: Futoshiki -> [Futoshiki]
-suc f = case encontrarCero (cells f) of
-  []     -> []
-  ((r, c):_) -> filter esValidoParcial
-                   [ f { cells = replaceMatrix (cells f) r c v } | v <- [1 .. size f] ]
-
--- Encuentra la primera casilla vacía (0)
-encontrarCero :: Matrix Int -> [(Int, Int)]
-encontrarCero mat = [ (r, c) | (r, row) <- zip [0..] mat, (c, val) <- zip [0..] row, val == 0 ]
-
--- Reemplaza el valor en una posición de la matriz
-replaceMatrix :: Matrix Int -> Int -> Int -> Int -> Matrix Int
-replaceMatrix mat r c val =
-  let beforeR = take r mat
-      rowAfterR = drop r mat
-  in case rowAfterR of
-       [] -> mat
-       (row:afterR) ->
-          let beforeC = take c row
-              afterC = drop (c + 1) row
-              newRow = beforeC ++ [val] ++ afterC
-          in beforeR ++ [newRow] ++ afterR
-
--- Comprueba si un estado parcial es válido (ignora los 0s)
-esValidoParcial :: Futoshiki -> Bool
-esValidoParcial f =
-  let filas = cells f
-      columnas = transpose filas
-      relVert = transpose (vRel f)
-  in all noDups filas &&
-     all noDups columnas &&
-     all (uncurry checkRelFilaParcial) (zip filas (hRel f)) &&
-     all (uncurry checkRelFilaParcial) (zip columnas relVert)
-
--- Función auxiliar que se detiene al primer hallazgo (cortocircuito)
-pertenece :: Int -> [Int] -> Bool
-pertenece _ [] = False
-pertenece e (y:ys)
-  | e == y    = True
-  | otherwise = pertenece e ys
-
-noDups :: [Int] -> Bool
-noDups [] = True
-noDups (x:xs)
-  | x == 0    = noDups xs
-  | pertenece x xs = False
-  | otherwise = noDups xs
-
--- Funciones para comprobar relaciones en estados parciales (ignora si hay un 0)
-cumpleRelParcial :: (Int, Int) -> Relation -> Bool
-cumpleRelParcial (0, _) _ = True
-cumpleRelParcial (_, 0) _ = True
-cumpleRelParcial _ Ind = True
-cumpleRelParcial (v1, v2) RLT = v1 < v2
-cumpleRelParcial (v1, v2) RGT = v1 > v2
-
-checkRelFilaParcial :: [Int] -> [Relation] -> Bool
-checkRelFilaParcial nums rels =
-  let pares = zip nums (tail nums)
-  in all (uncurry cumpleRelParcial) (zip pares rels)
-
-
--------------------------------------------------------
-------------IMPLEMENTACIÓN FUNCION ESSOL --------------
-
-esSol :: Futoshiki -> Bool
-esSol f =
-  let filas = cells f
-      columnas = transpose filas
-      relVert  = transpose (vRel f)
-  in noHayCeros (concat filas) &&
-     all (uncurry checkRelFila) (zip filas (hRel f)) &&
-     all (uncurry checkRelFila) (zip columnas relVert)
-
--- Comprueba si hay algún 0 en una lista plana
-noHayCeros :: [Int] -> Bool
-noHayCeros [] = True
-noHayCeros (x:xs)
-  | x == 0    = False -- Cortocircuito: si vemos un cero, fallamos al instante
-  | otherwise = noHayCeros xs
-
--- Comprueba que una lista de enteros contiene exactamente los números del 1 a n, sin repetir.
--- Esto también asegura que no hay ceros.
-listaValida :: Int -> [Int] -> Bool
-listaValida n xs = todosPertenecen [1..n] xs
-
--- Comprueba si una relación se cumple entre un par de números.
-cumpleRel :: (Int, Int) -> Relation -> Bool
-cumpleRel _ Ind = True
-cumpleRel (v1, v2) RLT = v1 < v2
-cumpleRel (v1, v2) RGT = v1 > v2
-
--- Comprueba las relaciones para una "fila" (puede ser una fila o una columna de celdas).
-checkRelFila :: [Int] -> [Relation] -> Bool
-checkRelFila (x:y:xs) (r:rs) = cumpleRel (x, y) r && checkRelFila (y:xs) rs
-checkRelFila _ _ = True
-
-todosPertenecen :: [Int] -> [Int] -> Bool
-todosPertenecen [] _ = True
-todosPertenecen (x:xs) listaDestino = pertenece x listaDestino && todosPertenecen xs listaDestino
 
 -- Main function: solves a Futoshiki --
 solve :: Futoshiki -> [Matrix Int]
 solve f = map cells (bt esSol suc f)
+
+-- esSol: Comprueba si no quedan ceros.
+esSol :: Futoshiki -> Bool
+esSol f = noHayCeros (concat (cells f))
+  where
+    noHayCeros [] = True
+    noHayCeros (x:xs)
+      | x == 0    = False
+      | otherwise = noHayCeros xs
+
+-- suc: Genera hijos a partir de la primera casilla vacía.
+suc :: Futoshiki -> [Futoshiki]
+suc f = generaHijos f (buscarCero (cells f) 0)
+
+-- generaHijos: Utiliza listas por comprensión para la generación.
+-- Si buscarCero devolvió (-1, -1), la lista de hijos es vacía.
+generaHijos :: Futoshiki -> (Int, Int) -> [Futoshiki]
+generaHijos f (-1, -1) = []
+generaHijos f (r, c) =
+    [ Futoshiki (size f) (ponerValor (cells f) r c v) (hRel f) (vRel f)
+    | v <- [1 .. size f]
+    , valido f r c v
+    ]
+
+-- ==========================================================
+-- BÚSQUEDA Y ACTUALIZACIÓN (USANDO TAKE / DROP)
+-- ==========================================================
+
+buscarCero :: Matrix Int -> Int -> (Int, Int)
+buscarCero [] _ = (-1, -1)
+buscarCero (fila:filas) r =
+    let c = buscarEnFila fila 0
+    in if c /= -1 then (r, c) else buscarCero filas (r + 1)
+
+buscarEnFila :: [Int] -> Int -> Int
+buscarEnFila [] _ = -1
+buscarEnFila (x:xs) c
+    | x == 0    = c
+    | otherwise = buscarEnFila xs (c + 1)
+
+-- ponerValor: Utiliza las funciones take y drop del Prelude de Haskell. 
+-- Esto genera nuevas listas de forma mucho más rápida y limpia, 
+-- aislando los elementos que no necesitamos modificar.
+ponerValor :: Matrix Int -> Int -> Int -> Int -> Matrix Int
+ponerValor matriz r c v =
+    let fila = obtener matriz r
+        nuevaFila = take c fila ++ [v] ++ drop (c + 1) fila
+    in take r matriz ++ [nuevaFila] ++ drop (r + 1) matriz
+
+-- Extrae un elemento de una lista buscando por índice.
+obtener :: [a] -> Int -> a
+obtener (x:xs) 0 = x
+obtener (x:xs) n = obtener xs (n - 1)
+
+-- obtenerColumna: Aprovechamos las listas por comprensión.
+obtenerColumna :: Matrix Int -> Int -> [Int]
+obtenerColumna matriz c = [ obtener fila c | fila <- matriz ]
+
+-- ==========================================================
+-- RESTRICCIONES (CON CORTOCIRCUITO PEREZOSO)
+-- ==========================================================
+
+-- valido: El operador && está evaluado en cortocircuito. 
+-- Si "noContiene" de la fila falla, NO se evalúan la columna ni las adyacencias.
+valido :: Futoshiki -> Int -> Int -> Int -> Bool
+valido f r c v =
+    noContiene (obtener (cells f) r) v &&
+    noContiene (obtenerColumna (cells f) c) v &&
+    validoH f r c v &&
+    validoV f r c v
+
+-- noContiene: Detiene la recursión inmediatamente al encontrar el número "v",
+-- evitando cálculos innecesarios.
+noContiene :: [Int] -> Int -> Bool
+noContiene [] _ = True
+noContiene (x:xs) v
+    | x == v    = False
+    | otherwise = noContiene xs v
+
+-- validoH: Las comprobaciones de los bordes (c == 0) mediante el operador ||
+-- evitan llamar a funciones de indexación si estamos en un extremo.
+validoH :: Futoshiki -> Int -> Int -> Int -> Bool
+validoH f r c v =
+    (c == 0 || comprobarIzq f r c v) &&
+    (c == size f - 1 || comprobarDer f r c v)
+
+comprobarIzq :: Futoshiki -> Int -> Int -> Int -> Bool
+comprobarIzq f r c v =
+    let vIzq = obtener (obtener (cells f) r) (c - 1)
+        rel = obtener (obtener (hRel f) r) (c - 1)
+    in vIzq == 0 || cumpleRelacion vIzq rel v
+
+comprobarDer :: Futoshiki -> Int -> Int -> Int -> Bool
+comprobarDer f r c v =
+    let vDer = obtener (obtener (cells f) r) (c + 1)
+        rel = obtener (obtener (hRel f) r) c
+    in vDer == 0 || cumpleRelacion v rel vDer
+
+-- validoV: Igual mecanismo de cortocircuito lógico para las adyacencias verticales.
+validoV :: Futoshiki -> Int -> Int -> Int -> Bool
+validoV f r c v =
+    (r == 0 || comprobarArriba f r c v) &&
+    (r == size f - 1 || comprobarAbajo f r c v)
+
+comprobarArriba :: Futoshiki -> Int -> Int -> Int -> Bool
+comprobarArriba f r c v =
+    let vArr = obtener (obtener (cells f) (r - 1)) c
+        rel = obtener (obtener (vRel f) (r - 1)) c
+    in vArr == 0 || cumpleRelacion vArr rel v
+
+comprobarAbajo :: Futoshiki -> Int -> Int -> Int -> Bool
+comprobarAbajo f r c v =
+    let vAba = obtener (obtener (cells f) (r + 1)) c
+        rel = obtener (obtener (vRel f) r) c
+    in vAba == 0 || cumpleRelacion v rel vAba
+
+-- cumpleRelacion: Simple y directo mediante Pattern Matching sobre el tipo 
+-- de datos Relation.
+cumpleRelacion :: Int -> Relation -> Int -> Bool
+cumpleRelacion _ Ind _ = True
+cumpleRelacion v1 RGT v2 = v1 > v2
+cumpleRelacion v1 RLT v2 = v1 < v2
