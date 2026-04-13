@@ -29,7 +29,7 @@ bt    esSol          suc          n
 solve :: Futoshiki -> [Matrix Int]
 solve f = map cells (bt esSol suc f)
 
--- esSol: Comprueba si no quedan ceros.
+-- Comprueba si no quedan ceros.
 esSol :: Futoshiki -> Bool
 esSol f = noHayCeros (concat (cells f))
   where
@@ -38,11 +38,11 @@ esSol f = noHayCeros (concat (cells f))
       | x == 0    = False
       | otherwise = noHayCeros xs
 
--- suc: Genera hijos a partir de la primera casilla vacía.
+-- Genera hijos a partir de la primera casilla vacía.
 suc :: Futoshiki -> [Futoshiki]
 suc f = generaHijos f (buscarCero (cells f) 0)
 
--- generaHijos: Utiliza listas por comprensión para la generación.
+-- Utiliza listas por comprensión para la generación.
 -- Si buscarCero devolvió (-1, -1), la lista de hijos es vacía.
 generaHijos :: Futoshiki -> (Int, Int) -> [Futoshiki]
 generaHijos f (-1, -1) = []
@@ -52,9 +52,6 @@ generaHijos f (r, c) =
     , valido f r c v
     ]
 
--- ==========================================================
--- BÚSQUEDA Y ACTUALIZACIÓN (USANDO TAKE / DROP)
--- ==========================================================
 
 buscarCero :: Matrix Int -> Int -> (Int, Int)
 buscarCero [] _ = (-1, -1)
@@ -68,9 +65,7 @@ buscarEnFila (x:xs) c
     | x == 0    = c
     | otherwise = buscarEnFila xs (c + 1)
 
--- ponerValor: Utiliza las funciones take y drop del Prelude de Haskell. 
--- Esto genera nuevas listas de forma mucho más rápida y limpia, 
--- aislando los elementos que no necesitamos modificar.
+-- Genera una nueva matriz con el valor "v" en la posición (r, c).
 ponerValor :: Matrix Int -> Int -> Int -> Int -> Matrix Int
 ponerValor matriz r c v =
     let fila = obtener matriz r
@@ -82,16 +77,9 @@ obtener :: [a] -> Int -> a
 obtener (x:xs) 0 = x
 obtener (x:xs) n = obtener xs (n - 1)
 
--- obtenerColumna: Aprovechamos las listas por comprensión.
 obtenerColumna :: Matrix Int -> Int -> [Int]
 obtenerColumna matriz c = [ obtener fila c | fila <- matriz ]
 
--- ==========================================================
--- RESTRICCIONES (CON CORTOCIRCUITO PEREZOSO)
--- ==========================================================
-
--- valido: El operador && está evaluado en cortocircuito. 
--- Si "noContiene" de la fila falla, NO se evalúan la columna ni las adyacencias.
 valido :: Futoshiki -> Int -> Int -> Int -> Bool
 valido f r c v =
     noContiene (obtener (cells f) r) v &&
@@ -99,16 +87,14 @@ valido f r c v =
     validoH f r c v &&
     validoV f r c v
 
--- noContiene: Detiene la recursión inmediatamente al encontrar el número "v",
--- evitando cálculos innecesarios.
+-- Detiene la recursión inmediatamente al encontrar el número "v".
 noContiene :: [Int] -> Int -> Bool
 noContiene [] _ = True
 noContiene (x:xs) v
     | x == v    = False
     | otherwise = noContiene xs v
 
--- validoH: Las comprobaciones de los bordes (c == 0) mediante el operador ||
--- evitan llamar a funciones de indexación si estamos en un extremo.
+-- Las comprobaciones de los bordes (c == 0) mediante el operador ||
 validoH :: Futoshiki -> Int -> Int -> Int -> Bool
 validoH f r c v =
     (c == 0 || comprobarIzq f r c v) &&
@@ -126,7 +112,7 @@ comprobarDer f r c v =
         rel = obtener (obtener (hRel f) r) c
     in vDer == 0 || cumpleRelacion v rel vDer
 
--- validoV: Igual mecanismo de cortocircuito lógico para las adyacencias verticales.
+-- Igual mecanismo para las adyacencias verticales.
 validoV :: Futoshiki -> Int -> Int -> Int -> Bool
 validoV f r c v =
     (r == 0 || comprobarArriba f r c v) &&
@@ -144,8 +130,6 @@ comprobarAbajo f r c v =
         rel = obtener (obtener (vRel f) r) c
     in vAba == 0 || cumpleRelacion v rel vAba
 
--- cumpleRelacion: Simple y directo mediante Pattern Matching sobre el tipo 
--- de datos Relation.
 cumpleRelacion :: Int -> Relation -> Int -> Bool
 cumpleRelacion _ Ind _ = True
 cumpleRelacion v1 RGT v2 = v1 > v2
